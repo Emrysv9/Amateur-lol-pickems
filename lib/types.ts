@@ -60,6 +60,7 @@ export type StandingRow = {
   rank: number;
   username: string;
   avatar_url: string | null;
+  correctPicks: number;
 };
 
 export function isLeagueLocked(league: League, now = new Date()): boolean {

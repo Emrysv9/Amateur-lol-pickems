@@ -247,21 +247,23 @@ export function BracketPicker({
             <div
               className={`w-full overflow-hidden rounded-xl border px-4 py-5 transition ${
                 championId
-                  ? "border-primary-hover bg-gradient-to-br from-primary/25 via-surface-raised to-surface shadow-[0_0_32px_color-mix(in_srgb,var(--primary)_28%,transparent)]"
+                  ? "champion-card"
                   : "border-border bg-surface"
               }`}
             >
-              <p className="mb-3 text-[11px] uppercase tracking-[0.22em] text-muted">
-                Tournament winner
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-highlight">
+                {championId ? "Champion" : "Tournament winner"}
               </p>
               <div className="flex items-center gap-3">
                 <TeamLogo team={champTeam} size="lg" />
-                <p className="font-display text-2xl font-semibold leading-tight text-primary">
+                <p className="font-display text-2xl font-semibold leading-tight text-foreground">
                   {teamName(teams, championId)}
                 </p>
               </div>
               <p className="mt-3 text-xs text-muted">
-                The team you pick in the final is your champion.
+                {championId
+                  ? "Your predicted tournament champion."
+                  : "The team you pick in the final is your champion."}
               </p>
             </div>
           </div>
@@ -282,7 +284,7 @@ export function BracketPicker({
             type="button"
             onClick={submit}
             disabled={pending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-primary-hover hover:shadow-[0_0_18px_color-mix(in_srgb,var(--primary)_45%,transparent)] disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-highlight hover:shadow-[0_0_16px_color-mix(in_srgb,var(--highlight)_22%,transparent)] disabled:opacity-60"
           >
             {pending
               ? "Saving…"
@@ -376,7 +378,7 @@ function TeamRow({
       onClick={() => teamId && onPick(teamId)}
       className={`group flex w-full items-center gap-2.5 px-2.5 py-2.5 text-left text-sm transition duration-150 ${
         selected
-          ? "bg-gradient-to-r from-primary/35 to-primary/10 text-foreground"
+          ? "bg-primary/15 text-foreground shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_50%,transparent),0_0_18px_color-mix(in_srgb,var(--highlight)_16%,transparent)]"
           : eliminated
             ? "bg-transparent text-muted/70 hover:bg-foreground/5"
             : "hover:-translate-y-px hover:bg-primary/10 hover:text-foreground"
@@ -384,7 +386,7 @@ function TeamRow({
     >
       <span
         className={`h-8 w-0.5 shrink-0 rounded-full transition ${
-          selected ? "bg-primary-hover shadow-[0_0_8px_var(--primary-hover)]" : "bg-transparent group-hover:bg-primary/50"
+          selected ? "bg-highlight shadow-[0_0_10px_color-mix(in_srgb,var(--highlight)_35%,transparent)]" : "bg-transparent group-hover:bg-primary/50"
         }`}
       />
       <TeamLogo team={team} size="md" />

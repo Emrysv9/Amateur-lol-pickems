@@ -19,3 +19,24 @@ export function scorePick(
   }
   return score;
 }
+
+export function decidedPredictionCount(matches: Match[]): number {
+  let count = matches.filter((match) => match.winner_id).length;
+  if (matches.some((match) => match.round === "final" && match.winner_id)) {
+    count += 1;
+  }
+  return count;
+}
+
+export function countCorrectPicks(pick: PickRow, matches: Match[]): number {
+  let correct = 0;
+  for (const match of matches) {
+    if (!match.winner_id) continue;
+    if (pick.selections[match.id] === match.winner_id) correct += 1;
+  }
+  const final = matches.find((match) => match.round === "final");
+  if (final?.winner_id && pick.champion_team_id === final.winner_id) {
+    correct += 1;
+  }
+  return correct;
+}

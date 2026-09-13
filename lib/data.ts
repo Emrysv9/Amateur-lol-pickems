@@ -4,6 +4,7 @@ import {
 } from "@/lib/community-picks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { countCorrectPicks } from "@/lib/scoring";
 import type { League, Match, PickRow, StandingRow, Team } from "@/lib/types";
 import { ACTIVE_LEAGUE_SELECT } from "@/lib/types";
 
@@ -155,8 +156,12 @@ export async function getLeaderboard(leagueId: string): Promise<StandingRow[]> {
     users: { username: string; avatar_url: string | null } | { username: string; avatar_url: string | null }[] | null;
   };
 
+  const matches = await getLeagueMatches(leagueId);
+  const picksByUser = await getLeaguePicksByUser(leagueId);
+
   return ((data ?? []) as Row[]).map((row) => {
     const profile = Array.isArray(row.users) ? row.users[0] : row.users;
+    const pick = picksByUser.get(row.user_id);
     return {
       league_id: row.league_id,
       user_id: row.user_id,
@@ -164,6 +169,27 @@ export async function getLeaderboard(leagueId: string): Promise<StandingRow[]> {
       rank: row.rank,
       username: profile?.username ?? "Summoner",
       avatar_url: profile?.avatar_url ?? null,
+      correctPicks: pick ? countCorrectPicks(pick, matches) : 0,
     };
   });
+}
+
+async function getLeaguePicksByUser(leagueId: string): Promise<Map<string, PickRow>> {
+  const map = new Map<string, PickRow>();
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("picks")
+      .select("id, league_id, user_id, champion_team_id, selections, submitted_at")
+      .eq("league_id", leagueId);
+    for (const row of data ?? []) {
+      map.set(row.user_id, {
+        ...row,
+        selections: (row.selections ?? {}) as Record<string, string>,
+      });
+    }
+  } catch {
+    return map;
+  }
+  return map;
 }

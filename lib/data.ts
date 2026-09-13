@@ -1,5 +1,6 @@
 import {
   computeCommunityPickRates,
+  type CommunityPickInput,
   type CommunityPickRates,
 } from "@/lib/community-picks";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -112,16 +113,19 @@ export async function getCommunityPickRates(
 
 async function getLeaguePickSelections(
   leagueId: string,
-): Promise<{ selections: Record<string, string> }[]> {
+): Promise<CommunityPickInput[]> {
   const supabase = await supabaseOrNull();
   if (supabase) {
     const { data, error } = await supabase.rpc("list_pick_selections", {
       p_league_id: leagueId,
     });
     if (!error && data) {
-      return (data as { selections: unknown }[]).map((row) => ({
-        selections: (row.selections ?? {}) as Record<string, string>,
-      }));
+      return (data as { selections: unknown; champion_team_id?: string | null }[]).map(
+        (row) => ({
+          selections: (row.selections ?? {}) as Record<string, string>,
+          championTeamId: row.champion_team_id ?? null,
+        }),
+      );
     }
   }
 
@@ -129,10 +133,11 @@ async function getLeaguePickSelections(
     const admin = createAdminClient();
     const { data } = await admin
       .from("picks")
-      .select("selections")
+      .select("selections, champion_team_id")
       .eq("league_id", leagueId);
     return (data ?? []).map((row) => ({
       selections: (row.selections ?? {}) as Record<string, string>,
+      championTeamId: row.champion_team_id ?? null,
     }));
   } catch {
     return [];

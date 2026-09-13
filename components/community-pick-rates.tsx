@@ -1,38 +1,24 @@
-import type { CommunityPickRates } from "@/lib/community-picks";
+import type { CommunityPickRates, OwnershipRow } from "@/lib/community-picks";
 import { TeamLogo } from "@/components/team-logo";
-import type { Round } from "@/lib/types";
-
-const ROUND_ORDER: Round[] = ["quarterfinal", "semifinal", "final"];
-
-const ROUND_LABEL: Record<Round, string> = {
-  quarterfinal: "Quarterfinals",
-  semifinal: "Semifinals",
-  final: "Final",
-};
 
 export function CommunityPickRatesSection({
   rates,
 }: {
   rates: CommunityPickRates;
 }) {
-  const grouped = ROUND_ORDER.map((round) => ({
-    round,
-    items: rates.matchups.filter((m) => m.round === round),
-  })).filter((group) => group.items.length > 0);
-
   return (
-    <section className="space-y-5 rounded-2xl border border-primary/20 bg-surface p-6 sm:p-8">
+    <section className="space-y-6 rounded-2xl border border-primary/20 bg-surface p-6 sm:p-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-primary">
             Community
           </p>
           <h2 className="font-display mt-2 text-3xl font-semibold uppercase">
-            Community Pick Rate
+            Community Trends
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            How submitted brackets split every matchup. Later rounds use each
-            player&apos;s projected pairing.
+            Who the field has advancing, plus first-round splits. Later rounds
+            are ownership, not projected pairings.
           </p>
         </div>
         <span className="rounded-full border border-border px-3 py-1 text-xs uppercase tracking-wider text-muted">
@@ -44,62 +30,130 @@ export function CommunityPickRatesSection({
 
       {rates.submissionCount === 0 ? (
         <p className="text-sm text-muted">
-          Percentages fill in after the first Discord user submits a bracket.
+          Trends fill in after the first Discord user submits a bracket.
         </p>
-      ) : null}
+      ) : (
+        <>
+          <MostPickedChampion row={rates.mostPickedChampion} />
+          <div className="grid gap-3 lg:grid-cols-3">
+            <OwnershipList
+              title="Champion"
+              caption="% of brackets picking this team to win it all"
+              rows={rates.championOwnership}
+            />
+            <OwnershipList
+              title="Finalists"
+              caption="% of brackets with this team in the final"
+              rows={rates.finalistOwnership}
+            />
+            <OwnershipList
+              title="Final Four"
+              caption="% of brackets with this team in the semis"
+              rows={rates.finalFourOwnership}
+            />
+          </div>
+        </>
+      )}
 
-      {grouped.length === 0 ? null : (
-        <div className="space-y-8">
-          {grouped.map(({ round, items }) => (
-            <div key={round} className="space-y-3">
-              <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-primary">
-                {ROUND_LABEL[round]}
-              </h3>
-              <div className="grid gap-3 md:grid-cols-2">
-                {items.map((matchup) => (
-                  <article
-                    key={matchup.id}
-                    className="overflow-hidden rounded-xl border border-border bg-surface-raised"
-                  >
-                    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wider text-muted">
-                          {matchup.title}
-                        </p>
-                        {matchup.subtitle ? (
-                          <p className="text-[11px] text-primary/80">
-                            {matchup.subtitle}
-                          </p>
-                        ) : null}
-                      </div>
-                      <p className="text-[11px] uppercase tracking-wider text-muted">
-                        {matchup.sampleSize} pick
-                        {matchup.sampleSize === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <div className="space-y-3 p-4">
-                      <PickRow
-                        name={matchup.teamAName}
-                        logoUrl={matchup.teamALogo}
-                        percent={matchup.teamAPercent}
-                        empty={matchup.sampleSize === 0}
-                      />
-                      <PickRow
-                        name={matchup.teamBName}
-                        logoUrl={matchup.teamBLogo}
-                        percent={matchup.teamBPercent}
-                        empty={matchup.sampleSize === 0}
-                        muted
-                      />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </div>
-          ))}
+      {rates.matchups.length === 0 ? null : (
+        <div className="space-y-3">
+          <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+            First-round matchups
+          </h3>
+          <div className="grid gap-3 md:grid-cols-2">
+            {rates.matchups.map((matchup) => (
+              <article
+                key={matchup.id}
+                className="overflow-hidden rounded-xl border border-border bg-surface-raised"
+              >
+                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
+                  <p className="text-[11px] uppercase tracking-wider text-muted">
+                    {matchup.title}
+                  </p>
+                  <p className="text-[11px] uppercase tracking-wider text-muted">
+                    {matchup.sampleSize === 1 ? "1 pick" : `${matchup.sampleSize} picks`}
+                  </p>
+                </div>
+                <div className="space-y-3 p-4">
+                  <PickRow
+                    name={matchup.teamAName}
+                    logoUrl={matchup.teamALogo}
+                    percent={matchup.teamAPercent}
+                    empty={matchup.sampleSize === 0}
+                  />
+                  <PickRow
+                    name={matchup.teamBName}
+                    logoUrl={matchup.teamBLogo}
+                    percent={matchup.teamBPercent}
+                    empty={matchup.sampleSize === 0}
+                    muted
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       )}
     </section>
+  );
+}
+
+function MostPickedChampion({ row }: { row: OwnershipRow | null }) {
+  if (!row) return null;
+  return (
+    <article className="flex flex-wrap items-center gap-4 rounded-xl border border-highlight/35 bg-surface-raised px-4 py-4 sm:px-5">
+      <TeamLogo team={{ name: row.name, logo_url: row.logoUrl }} size="lg" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-highlight">
+          Most picked champion
+        </p>
+        <h3 className="font-display truncate text-2xl font-semibold uppercase leading-tight">
+          {row.name}
+        </h3>
+        <p className="text-sm text-muted">
+          Picked to win the tournament in {row.count}{" "}
+          {row.count === 1 ? "bracket" : "brackets"}
+        </p>
+      </div>
+      <p className="font-display text-4xl font-semibold tabular-nums text-highlight">
+        {row.percent}%
+      </p>
+    </article>
+  );
+}
+
+function OwnershipList({
+  title,
+  caption,
+  rows,
+}: {
+  title: string;
+  caption: string;
+  rows: OwnershipRow[];
+}) {
+  return (
+    <article className="rounded-xl border border-border bg-surface-raised p-4">
+      <h3 className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+        {title}
+      </h3>
+      <p className="mt-1 text-[11px] leading-snug text-muted">{caption}</p>
+      <div className="mt-3 space-y-3">
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted">No data yet.</p>
+        ) : (
+          rows.map((row, index) => (
+            <PickRow
+              key={row.teamId}
+              name={row.name}
+              logoUrl={row.logoUrl}
+              percent={row.percent}
+              empty={false}
+              muted={index > 0}
+            />
+          ))
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -134,7 +188,7 @@ function PickRow({
       <div className="h-1.5 overflow-hidden rounded-full bg-border">
         <div
           className={`h-full rounded-full ${muted ? "bg-muted" : "bg-primary"}`}
-          style={{ width: empty ? "0%" : `${percent}%` }}
+          style={{ width: empty ? "0%" : `${Math.min(percent, 100)}%` }}
         />
       </div>
     </div>

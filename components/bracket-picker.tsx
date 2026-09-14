@@ -12,6 +12,7 @@ type Props = {
   existing: PickRow | null;
   locked: boolean;
   signedIn: boolean;
+  viewingName?: string | null;
 };
 
 function teamName(teams: Team[], id: string | null) {
@@ -26,6 +27,7 @@ export function BracketPicker({
   existing,
   locked,
   signedIn,
+  viewingName,
 }: Props) {
   const [selections, setSelections] = useState<Record<string, string>>(
     existing?.selections ?? {},
@@ -131,9 +133,18 @@ export function BracketPicker({
 
   const champTeam = teams.find((t) => t.id === championId);
 
+  const viewOnly = Boolean(viewingName);
+
   return (
     <div className="space-y-6">
-      {locked ? (
+      {viewOnly ? (
+        <div
+          role="status"
+          className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-medium text-primary"
+        >
+          Viewing {viewingName}&apos;s locked bracket.
+        </div>
+      ) : locked ? (
         <div
           role="status"
           className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm font-medium text-primary"
@@ -148,9 +159,11 @@ export function BracketPicker({
         </p>
       ) : null}
 
-      <p className="text-xs uppercase tracking-[0.2em] text-muted">
-        Click a team to advance them — winners fill the next round
-      </p>
+      {viewOnly ? null : (
+        <p className="text-xs uppercase tracking-[0.2em] text-muted">
+          Click a team to advance them — winners fill the next round
+        </p>
+      )}
 
       <div className="bracket-scroll">
         <div className="bracket-board">
@@ -270,33 +283,35 @@ export function BracketPicker({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {!signedIn ? (
-          <p className="text-sm text-muted">
-            Sign in with Discord to save one bracket.
-          </p>
-        ) : locked ? (
-          <p className="text-sm font-medium text-primary">
-            Predictions are locked.
-          </p>
-        ) : (
-          <button
-            type="button"
-            onClick={submit}
-            disabled={pending}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-highlight hover:shadow-[0_0_16px_color-mix(in_srgb,var(--highlight)_22%,transparent)] disabled:opacity-60"
-          >
-            {pending
-              ? "Saving…"
-              : savedOnce
-                ? "Save changes"
-                : "Save bracket"}
-          </button>
-        )}
-        {message && !locked ? (
-          <p className="text-sm text-primary">{message}</p>
-        ) : null}
-      </div>
+      {viewOnly ? null : (
+        <div className="flex flex-wrap items-center gap-3">
+          {!signedIn ? (
+            <p className="text-sm text-muted">
+              Sign in with Discord to save one bracket.
+            </p>
+          ) : locked ? (
+            <p className="text-sm font-medium text-primary">
+              Predictions are locked.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={pending}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-on-primary transition hover:bg-highlight hover:shadow-[0_0_16px_color-mix(in_srgb,var(--highlight)_22%,transparent)] disabled:opacity-60"
+            >
+              {pending
+                ? "Saving…"
+                : savedOnce
+                  ? "Save changes"
+                  : "Save bracket"}
+            </button>
+          )}
+          {message && !locked ? (
+            <p className="text-sm text-primary">{message}</p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

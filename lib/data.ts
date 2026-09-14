@@ -5,7 +5,7 @@ import {
 } from "@/lib/community-picks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { countCorrectPicks } from "@/lib/scoring";
+import { countCorrectPicks, scorePick } from "@/lib/scoring";
 import type { League, Match, PickRow, StandingRow, Team } from "@/lib/types";
 import { ACTIVE_LEAGUE_SELECT } from "@/lib/types";
 
@@ -144,57 +144,84 @@ async function getLeaguePickSelections(
   }
 }
 
-export async function getLeaderboard(leagueId: string): Promise<StandingRow[]> {
-  const supabase = await supabaseOrNull();
-  if (!supabase) return [];
-  const { data } = await supabase
-    .from("standings")
-    .select("league_id, user_id, score, rank, users (username, avatar_url)")
-    .eq("league_id", leagueId)
-    .order("rank", { ascending: true });
+export async function getLeaderboard(league: League): Promise<StandingRow[]> {
+  const matches = await getLeagueMatches(league.id);
+  const picks = await getLeaguePicksWithProfiles(league.id);
 
-  type Row = {
-    league_id: string;
-    user_id: string;
-    score: number;
-    rank: number;
-    users: { username: string; avatar_url: string | null } | { username: string; avatar_url: string | null }[] | null;
-  };
+  const scored = picks.map((pick) => ({
+    league_id: league.id,
+    user_id: pick.user_id,
+    score: scorePick(pick, matches, league),
+    username: pick.username,
+    avatar_url: pick.avatar_url,
+    correctPicks: countCorrectPicks(pick, matches),
+    submittedAt: pick.submitted_at,
+  }));
 
-  const matches = await getLeagueMatches(leagueId);
-  const picksByUser = await getLeaguePicksByUser(leagueId);
+  scored.sort(
+    (a, b) =>
+      b.score - a.score ||
+      b.correctPicks - a.correctPicks ||
+      a.submittedAt.localeCompare(b.submittedAt) ||
+      a.username.localeCompare(b.username),
+  );
 
-  return ((data ?? []) as Row[]).map((row) => {
-    const profile = Array.isArray(row.users) ? row.users[0] : row.users;
-    const pick = picksByUser.get(row.user_id);
-    return {
-      league_id: row.league_id,
-      user_id: row.user_id,
-      score: row.score,
-      rank: row.rank,
-      username: profile?.username ?? "Summoner",
-      avatar_url: profile?.avatar_url ?? null,
-      correctPicks: pick ? countCorrectPicks(pick, matches) : 0,
-    };
-  });
+  return scored.map((row, index) => ({
+    league_id: row.league_id,
+    user_id: row.user_id,
+    score: row.score,
+    rank: index + 1,
+    username: row.username,
+    avatar_url: row.avatar_url,
+    correctPicks: row.correctPicks,
+  }));
 }
 
-async function getLeaguePicksByUser(leagueId: string): Promise<Map<string, PickRow>> {
-  const map = new Map<string, PickRow>();
+export async function getLockedUserPick(
+  leagueId: string,
+  userId: string,
+): Promise<(PickRow & { username: string; avatar_url: string | null }) | null> {
+  const picks = await getLeaguePicksWithProfiles(leagueId);
+  return picks.find((pick) => pick.user_id === userId) ?? null;
+}
+
+type PickWithProfile = PickRow & {
+  username: string;
+  avatar_url: string | null;
+};
+
+async function getLeaguePicksWithProfiles(leagueId: string): Promise<PickWithProfile[]> {
   try {
     const admin = createAdminClient();
     const { data } = await admin
       .from("picks")
-      .select("id, league_id, user_id, champion_team_id, selections, submitted_at")
+      .select(
+        "id, league_id, user_id, champion_team_id, selections, submitted_at, users (username, avatar_url)",
+      )
       .eq("league_id", leagueId);
-    for (const row of data ?? []) {
-      map.set(row.user_id, {
-        ...row,
+
+    type Row = Omit<PickRow, "selections"> & {
+      selections: unknown;
+      users:
+        | { username: string; avatar_url: string | null }
+        | { username: string; avatar_url: string | null }[]
+        | null;
+    };
+
+    return ((data ?? []) as Row[]).map((row) => {
+      const profile = Array.isArray(row.users) ? row.users[0] : row.users;
+      return {
+        id: row.id,
+        league_id: row.league_id,
+        user_id: row.user_id,
+        champion_team_id: row.champion_team_id,
         selections: (row.selections ?? {}) as Record<string, string>,
-      });
-    }
+        submitted_at: row.submitted_at,
+        username: profile?.username ?? "Summoner",
+        avatar_url: profile?.avatar_url ?? null,
+      };
+    });
   } catch {
-    return map;
+    return [];
   }
-  return map;
 }

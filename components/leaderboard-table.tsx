@@ -1,13 +1,16 @@
+import Link from "next/link";
 import type { League, StandingRow } from "@/lib/types";
 
 export function LeaderboardTable({
   league,
   rows,
   decidedCount,
+  locked,
 }: {
   league: League | null;
   rows: StandingRow[];
   decidedCount: number;
+  locked: boolean;
 }) {
   const leader = rows[0] ?? null;
 
@@ -23,7 +26,7 @@ export function LeaderboardTable({
           </h1>
         </div>
         <p className="text-xs uppercase tracking-wider text-muted">
-          {rows.length} {rows.length === 1 ? "player" : "players"}
+          {rows.length} {rows.length === 1 ? "bracket" : "brackets"}
           <span className="mx-2 text-border">·</span>
           {decidedCount} scored {decidedCount === 1 ? "pick" : "picks"}
         </p>
@@ -33,6 +36,7 @@ export function LeaderboardTable({
         leader={leader}
         decidedCount={decidedCount}
         empty={rows.length === 0}
+        locked={locked}
       />
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -40,17 +44,26 @@ export function LeaderboardTable({
           place={2}
           row={rows[1] ?? null}
           decidedCount={decidedCount}
+          locked={locked}
         />
         <PodiumCard
           place={3}
           row={rows[2] ?? null}
           decidedCount={decidedCount}
+          locked={locked}
         />
       </div>
 
+      <p className="text-sm text-muted">
+        {locked
+          ? "Click a player to open their submitted bracket."
+          : "Every submitted bracket is listed. Other players’ picks stay hidden until lock."}
+      </p>
+
       {rows.length === 0 ? (
         <p className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted">
-          Rankings appear after an admin enters match winners.
+          No brackets submitted yet. Players appear here as soon as they save a
+          pick.
         </p>
       ) : (
         <section className="overflow-x-auto rounded-xl border border-border bg-surface">
@@ -68,6 +81,7 @@ export function LeaderboardTable({
                 row={row}
                 decidedCount={decidedCount}
                 highlight={row.rank <= 3}
+                locked={locked}
               />
             ))}
           </ol>
@@ -81,10 +95,12 @@ function PodiumCard({
   place,
   row,
   decidedCount,
+  locked,
 }: {
   place: 2 | 3;
   row: StandingRow | null;
   decidedCount: number;
+  locked: boolean;
 }) {
   const medal = medalForRank(place)!;
   return (
@@ -104,7 +120,7 @@ function PodiumCard({
           {place === 2 ? "2nd · Silver" : "3rd · Bronze"}
         </p>
         <p className="truncate font-display text-xl font-semibold uppercase leading-tight">
-          {row?.username ?? "Open slot"}
+          <PlayerName row={row} locked={locked} />
         </p>
       </div>
       <div className="text-right">
@@ -125,10 +141,12 @@ function FeaturedLeader({
   leader,
   decidedCount,
   empty,
+  locked,
 }: {
   leader: StandingRow | null;
   decidedCount: number;
   empty: boolean;
+  locked: boolean;
 }) {
   return (
     <section className="relative overflow-hidden rounded-xl border border-medal-gold/35 bg-surface">
@@ -152,11 +170,11 @@ function FeaturedLeader({
             Current leader
           </p>
           <h2 className="font-display truncate text-3xl font-semibold uppercase leading-none sm:text-4xl">
-            {empty ? "Awaiting results" : leader?.username}
+            {empty ? "Awaiting entries" : <PlayerName row={leader} locked={locked} />}
           </h2>
           <p className="mt-1 text-sm text-muted">
             {empty
-              ? "The first scored bracket takes this throne."
+              ? "The first saved bracket takes this throne."
               : "Rank 1 · gold position"}
           </p>
         </div>
@@ -185,10 +203,12 @@ function LeaderboardRow({
   row,
   decidedCount,
   highlight,
+  locked,
 }: {
   row: StandingRow;
   decidedCount: number;
   highlight: boolean;
+  locked: boolean;
 }) {
   const medal = medalForRank(row.rank);
   return (
@@ -208,7 +228,9 @@ function LeaderboardRow({
           ring={medal?.ring}
         />
         <div className="min-w-0">
-          <p className="truncate font-medium leading-tight">{row.username}</p>
+          <p className="truncate font-medium leading-tight">
+            <PlayerName row={row} locked={locked} />
+          </p>
           {medal ? (
             <p className={`text-[10px] font-semibold uppercase tracking-wider ${medal.text}`}>
               {medal.label}
@@ -235,6 +257,25 @@ function LeaderboardRow({
         —
       </span>
     </li>
+  );
+}
+
+function PlayerName({
+  row,
+  locked,
+}: {
+  row: StandingRow | null;
+  locked: boolean;
+}) {
+  if (!row) return "Open slot";
+  if (!locked) return row.username;
+  return (
+    <Link
+      href={`/leaderboard/${row.user_id}`}
+      className="hover:text-primary hover:underline"
+    >
+      {row.username}
+    </Link>
   );
 }
 
